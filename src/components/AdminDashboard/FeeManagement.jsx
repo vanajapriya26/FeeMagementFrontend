@@ -1,18 +1,41 @@
 // src/components/AdminDashboard/FeeManagement.js
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaMoneyBillWave, FaPlus, FaEdit, FaTrash, FaCheck } from 'react-icons/fa';
+import { useFee } from '../../context/FeeContext';
+import { sendNotificationToBackend as sendNotification } from './NotificationManagement';
 
 const FeeManagement = () => {
-    const [feeCategories, setFeeCategories] = useState([
-        { id: 1, name: 'Tuition Fee', amount: 50000 },
-        { id: 2, name: 'Library Fee', amount: 2000 },
-        { id: 3, name: 'Sports Fee', amount: 1500 }
-    ]);
+    const { feeCategories, addFeeCategory, updateFeeCategory, removeFeeCategory, addNotification } = useFee();
     const [newCategory, setNewCategory] = useState('');
     const [newAmount, setNewAmount] = useState('');
     const [isAddingCategory, setIsAddingCategory] = useState(false);
     const [editingCategoryId, setEditingCategoryId] = useState(null);
+    const [notifications, setNotifications] = useState([]);
+
+    // Debug log when feeCategories changes
+    useEffect(() => {
+        console.log('FeeManagement: Categories updated:', feeCategories);
+    }, [feeCategories]);
+
+    // Function to add a new notification
+    const handleAddNotification = (notification) => {
+        addNotification(notification);
+    };
+
+    // Function to add a new notification
+    const handleSendNotification = async (notification) => {
+        try {
+            const response = await sendNotification(notification);
+            if (response.success) {
+                handleAddNotification(notification);
+                // Optionally, notify the student dashboard (e.g., via WebSocket or API)
+                // notifyStudentDashboard(notification);
+            }
+        } catch (error) {
+            console.error('Error sending notification:', error);
+        }
+    };
 
     const handleAddCategory = () => {
         if (newCategory.trim() === '' || newAmount.trim() === '') {
@@ -20,22 +43,12 @@ const FeeManagement = () => {
             return;
         }
 
-        const amount = parseFloat(newAmount);
-        if (isNaN(amount) || amount <= 0) {
-            alert('Please enter a valid amount');
-            return;
-        }
+        // Use the context's addFeeCategory method
+        addFeeCategory({ name: newCategory, amount: newAmount });
 
-        const newFeeCategory = {
-            id: feeCategories.length + 1,
-            name: newCategory,
-            amount: amount
-        };
-
-        setFeeCategories([...feeCategories, newFeeCategory]);
-        setNewCategory('');
-        setNewAmount('');
-        setIsAddingCategory(false);
+        // Confirm addition
+        alert(`Fee category '${newCategory}' has been added successfully!`);
+        handleSendNotification(`Fee category '${newCategory}' has been added successfully!`);
     };
 
     const handleEditCategory = (id) => {
@@ -55,28 +68,37 @@ const FeeManagement = () => {
             return;
         }
 
-        setFeeCategories(feeCategories.map(category =>
-            category.id === editingCategoryId 
-                ? { ...category, name: newCategory, amount: amount }
-                : category
-        ));
+        const updatedCategory = {
+            id: editingCategoryId,
+            name: newCategory,
+            amount: amount
+        };
+
+        updateFeeCategory(updatedCategory);
         setNewCategory('');
         setNewAmount('');
         setEditingCategoryId(null);
         setIsAddingCategory(false);
+        handleSendNotification(`Fee category '${newCategory}' has been updated successfully!`);
     };
 
     const handleRemoveCategory = (id) => {
         if (window.confirm('Are you sure you want to remove this fee category?')) {
-            setFeeCategories(feeCategories.filter(category => category.id !== id));
+            removeFeeCategory(id);
+            handleSendNotification(`Fee category has been removed successfully!`);
         }
     };
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-            <div className="flex items-center gap-2 mb-6">
-                <FaMoneyBillWave className="text-green-600 text-2xl" />
-                <h2 className="text-xl font-semibold">Fee Management</h2>
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                    <FaMoneyBillWave className="text-green-600 text-2xl" />
+                    <h2 className="text-xl font-semibold">Fee Management</h2>
+                </div>
+                <div className="text-gray-600">
+                    {feeCategories.length} {feeCategories.length === 1 ? 'Category' : 'Categories'}
+                </div>
             </div>
 
             {/* Input fields for new category */}

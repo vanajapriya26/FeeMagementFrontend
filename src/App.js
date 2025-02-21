@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/login/Login';
 import StudentDashboard from './components/StudentDashboard/StudentDashboard';
 import AdminDashboard from './components/AdminDashboard/AdminDashboard';
+import { SafeFeeProvider } from './context/FeeContext';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -21,8 +22,9 @@ function App() {
   };
 
   return (
-    <BrowserRouter>
-      <Routes>
+    <SafeFeeProvider>
+      <BrowserRouter>
+        <Routes>
         <Route 
           path="/" 
           element={
@@ -53,8 +55,9 @@ function App() {
             )
           } 
         />
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </SafeFeeProvider>
   );
 }
 

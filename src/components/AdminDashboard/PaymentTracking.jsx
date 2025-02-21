@@ -1,53 +1,76 @@
 // src/components/AdminDashboard/PaymentTracking.js
 
-import React, { useState } from 'react';
-import { FaMoneyCheck, FaSearch, FaFilter, FaCheckCircle, FaClock, FaExclamationCircle } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { FaMoneyCheck, FaSearch, FaFilter, FaCheckCircle, FaClock, FaExclamationCircle, FaGraduationCap } from 'react-icons/fa';
+import { useFee } from '../../context/FeeContext';
 
 const PaymentTracking = () => {
-    const [payments, setPayments] = useState([
-        { id: 1, studentName: 'John Doe', amount: 5000, status: 'paid', date: '2024-02-15', category: 'Tuition Fee' },
-        { id: 2, studentName: 'Jane Smith', amount: 2000, status: 'pending', date: '2024-02-20', category: 'Library Fee' },
-        { id: 3, studentName: 'Mike Johnson', amount: 1500, status: 'overdue', date: '2024-01-30', category: 'Sports Fee' },
-    ]);
-
+    const { upcomingPayments, setUpcomingPayments } = useFee();
     const [filterDate, setFilterDate] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
 
     // Status color mapping
     const statusColors = {
-        paid: 'text-green-500',
-        pending: 'text-yellow-500',
-        overdue: 'text-red-500'
+        paid: 'text-green-600',
+        pending: 'text-yellow-600',
+        overdue: 'text-red-600'
     };
 
     // Status icon mapping
     const statusIcons = {
-        paid: <FaCheckCircle className={statusColors.paid} />,
-        pending: <FaClock className={statusColors.pending} />,
-        overdue: <FaExclamationCircle className={statusColors.overdue} />
+        paid: <FaCheckCircle className="text-green-600" />,
+        pending: <FaClock className="text-yellow-600" />,
+        overdue: <FaExclamationCircle className="text-red-600" />
     };
 
+    // Calculate total amount
+    const totalAmount = upcomingPayments.reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
+
     // Filter payments based on date, status, and search term
-    const filteredPayments = payments.filter(payment => {
-        const matchesDate = filterDate ? payment.date === filterDate : true;
+    const filteredPayments = upcomingPayments.filter(payment => {
+        const matchesDate = filterDate ? payment.dueDate === filterDate : true;
         const matchesStatus = filterStatus ? payment.status === filterStatus : true;
-        const matchesSearch = payment.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            payment.category.toLowerCase().includes(searchTerm.toLowerCase());
+        const searchLower = searchTerm.toLowerCase();
+
+        const matchesSearch = 
+            payment.studentRegNo?.toLowerCase().includes(searchLower) ||
+            payment.studentName?.toLowerCase().includes(searchLower) ||
+            payment.studentYear?.toLowerCase().includes(searchLower) ||
+            payment.studentSemester?.toLowerCase().includes(searchLower) ||
+            payment.studentDepartment?.toLowerCase().includes(searchLower) ||
+            payment.category?.toLowerCase().includes(searchLower);
+
         return matchesDate && matchesStatus && matchesSearch;
     });
 
     const handleStatusChange = (paymentId, newStatus) => {
-        setPayments(payments.map(payment =>
-            payment.id === paymentId ? { ...payment, status: newStatus } : payment
-        ));
+        setUpcomingPayments(prevPayments =>
+            prevPayments.map(payment =>
+                payment.id === paymentId 
+                    ? { ...payment, status: newStatus, updatedAt: new Date().toISOString() } 
+                    : payment
+            )
+        );
+        // Show success message
+        alert('Payment status updated successfully!');
     };
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="flex items-center gap-2 mb-6">
-                <FaMoneyCheck className="text-blue-600 text-2xl" />
-                <h2 className="text-xl font-semibold">Payment Tracking</h2>
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                    <FaMoneyCheck className="text-blue-600 text-2xl" />
+                    <h2 className="text-xl font-semibold">Payment Tracking</h2>
+                </div>
+                <div className="flex items-center gap-4">
+                    <div className="text-gray-600">
+                        Total Payments: {upcomingPayments.length}
+                    </div>
+                    <div className="text-green-600 font-semibold">
+                        Total Amount: ₹{totalAmount.toFixed(2)}
+                    </div>
+                </div>
             </div>
 
             {/* Search and Filter Section */}
@@ -56,7 +79,7 @@ const PaymentTracking = () => {
                 <div className="relative">
                     <input
                         type="text"
-                        placeholder="Search by student or category"
+                        placeholder="Search by reg no, name, year, semester, or department"
                         className="border rounded-lg pl-10 p-2 w-full"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -102,38 +125,49 @@ const PaymentTracking = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead>
                         <tr className="bg-gray-100">
+                            <th className="border border-gray-300 px-4 py-2">Register No.</th>
                             <th className="border border-gray-300 px-4 py-2">Student Name</th>
+                            <th className="border border-gray-300 px-4 py-2">Year & Semester</th>
+                            <th className="border border-gray-300 px-4 py-2">Department</th>
                             <th className="border border-gray-300 px-4 py-2">Category</th>
                             <th className="border border-gray-300 px-4 py-2">Amount (₹)</th>
-                            <th className="border border-gray-300 px-4 py-2">Date</th>
+                            <th className="border border-gray-300 px-4 py-2">Due Date</th>
                             <th className="border border-gray-300 px-4 py-2">Status</th>
                             <th className="border border-gray-300 px-4 py-2">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {filteredPayments.map(payment => (
-                            <tr key={payment.id} className="border-b">
+                            <tr key={payment.id} className="border-b hover:bg-gray-50">
+                                <td className="border border-gray-300 px-4 py-2 font-medium">{payment.studentRegNo}</td>
                                 <td className="border border-gray-300 px-4 py-2">{payment.studentName}</td>
+                                <td className="border border-gray-300 px-4 py-2">
+                                    <div className="flex items-center gap-2">
+                                        <FaGraduationCap className="text-blue-500" />
+                                        <span>{payment.studentYear} - {payment.studentSemester}</span>
+                                    </div>
+                                </td>
+                                <td className="border border-gray-300 px-4 py-2">{payment.studentDepartment}</td>
                                 <td className="border border-gray-300 px-4 py-2">{payment.category}</td>
-                                <td className="border border-gray-300 px-4 py-2">₹{payment.amount}</td>
-                                <td className="border border-gray-300 px-4 py-2">{payment.date}</td>
+                                <td className="border border-gray-300 px-4 py-2 font-medium">₹{payment.amount}</td>
+                                <td className="border border-gray-300 px-4 py-2">{payment.dueDate}</td>
                                 <td className="border border-gray-300 px-4 py-2">
                                     <div className="flex items-center gap-2 justify-center">
-                                        {statusIcons[payment.status]}
-                                        <span className={statusColors[payment.status]}>
-                                            {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                                        {statusIcons[payment.status] || statusIcons.pending}
+                                        <span className={statusColors[payment.status] || statusColors.pending}>
+                                            {(payment.status || 'pending').charAt(0).toUpperCase() + (payment.status || 'pending').slice(1)}
                                         </span>
                                     </div>
                                 </td>
                                 <td className="border border-gray-300 px-4 py-2">
                                     <select
-                                        className="border rounded-lg p-1"
-                                        value={payment.status}
+                                        className="border rounded-lg p-1 w-full"
+                                        value={payment.status || 'pending'}
                                         onChange={(e) => handleStatusChange(payment.id, e.target.value)}
                                     >
-                                        <option value="paid">Mark as Paid</option>
-                                        <option value="pending">Mark as Pending</option>
-                                        <option value="overdue">Mark as Overdue</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="paid">Paid</option>
+                                        <option value="overdue">Overdue</option>
                                     </select>
                                 </td>
                             </tr>

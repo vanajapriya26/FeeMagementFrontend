@@ -1,6 +1,7 @@
 // src/components/AdminDashboard/AdminDashboard.js
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import '../../styles/global.css';
 import { 
     FaChartBar, 
     FaUserGraduate, 
@@ -19,7 +20,7 @@ import StudentManagement from './StudentManagement';
 import FeeManagement from './FeeManagement';
 import PaymentTracking from './PaymentTracking';
 import Reports from './Reports';
-import Notifications from './Notifications';
+import NotificationManagement from './NotificationManagement';
 
 const AdminDashboard = ({ isLoggedIn, onLogout }) => {
     const [activeSection, setActiveSection] = useState('overview');
@@ -48,7 +49,7 @@ const AdminDashboard = ({ isLoggedIn, onLogout }) => {
             case 'reports':
                 return <Reports />;
             case 'notifications':
-                return <Notifications />;
+                return <NotificationManagement />;
             default:
                 return <OverviewStatistics />;
         }
@@ -60,10 +61,10 @@ const AdminDashboard = ({ isLoggedIn, onLogout }) => {
                 setActiveSection(item.id);
                 if (isMobile) setIsMenuOpen(false);
             }}
-            className={`py-2 px-4 rounded-lg flex items-center gap-2 transition-all duration-200 w-full
+            className={`py-3 px-6 rounded-xl flex items-center gap-3 transition-all duration-300 w-full font-medium
                 ${activeSection === item.id 
-                    ? 'bg-blue-500 text-white' 
-                    : 'text-blue-500 hover:bg-blue-100'}`}
+                    ? 'button-primary' 
+                    : 'text-secondary-color hover:bg-blue-50'}`}
         >
             {item.icon}
             <span>{item.label}</span>
@@ -71,18 +72,32 @@ const AdminDashboard = ({ isLoggedIn, onLogout }) => {
     );
 
     return (
-        <div className="min-h-screen bg-gray-100">
+        <div className="min-h-screen bg-background">
+            {/* Hero Section */}
+            <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 text-white py-12 px-6 mb-8">
+                <div className="max-w-7xl mx-auto flex flex-col items-center justify-center text-center">
+                    <h1 className="text-3xl font-bold mb-3">Admin Control Panel</h1>
+                    
+                </div>
+            </div>
+
             {/* Sticky Navbar */}
-            <nav className="sticky top-0 z-50 bg-white shadow-md rounded-lg mb-6 flex justify-between items-center p-4">
-                <div className="flex items-center gap-2">
-                    <FaCog className="text-blue-500 text-2xl" />
-                    <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+            <nav className="sticky top-0 z-50 glass-effect mb-6 flex justify-between items-center p-4 mx-4 rounded-xl">
+
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center">
+                        <FaCog className="text-primary-color text-xl animate-spin-slow" />
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-bold gradient-text">Admin Dashboard</h1>
+                        <p className="text-sm text-secondary-color">Manage system settings and users</p>
+                    </div>
                 </div>
 
                 {/* Mobile Menu Button */}
                 <button
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
-                    className="md:hidden p-2 text-gray-600 focus:outline-none"
+                    className="md:hidden p-2 text-gray-600 hover:text-primary-color focus:outline-none transition-colors duration-200"
                 >
                     {isMenuOpen ? <FaTimes className="h-6 w-6" /> : <FaBars className="h-6 w-6" />}
                 </button>
@@ -98,7 +113,7 @@ const AdminDashboard = ({ isLoggedIn, onLogout }) => {
                         {isLoggedIn ? (
                             <button
                                 onClick={onLogout}
-                                className="py-2 px-4 rounded-lg bg-red-500 text-white hover:bg-red-600 flex items-center gap-2"
+                                className="py-2 px-4 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl"
                             >
                                 <FaSignOutAlt />
                                 Logout

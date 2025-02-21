@@ -1,79 +1,28 @@
-// src/components/StudentDashboard/PaymentOptions.jsx
-
-import React, { useState } from 'react';
-import { QRCodeCanvas } from 'qrcode.react';
-import { 
-    FaCalendarAlt, 
-    FaMoneyBillWave, 
-    FaBus, 
-    FaHome, 
-    FaGraduationCap,
-    FaUpload,
-    FaImage,
-    FaPaperPlane,
-    FaRegClock,
-    FaBook,
-    FaCog,
-    FaRupeeSign,
-    FaArrowLeft,
-    FaArrowRight,
-    FaCopy
-} from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FaCreditCard, FaUniversity, FaQrcode, FaCheck, FaQuestionCircle, FaDownload, FaShare } from 'react-icons/fa';
+import QRCode from '../../assests/QR.png';
+import '../../styles/global.css';
 
 const PaymentOptions = () => {
-    const [showForm, setShowForm] = useState(false);
-    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null); // 'upi' or 'netbanking'
+    const [selectedMethod, setSelectedMethod] = useState(null);
+    const [showQR, setShowQR] = useState(false);
     const [formData, setFormData] = useState({
-        year: new Date().getFullYear(),
-        semester: 1,
-        fees: [],
-        examType: 'regular',
-        numberOfSubjects: 0,
-        amount: 0,
-        message: '',
-        image: null
+        feeType: '',
+        amount: '',
+        paymentMethod: 'razorpay' // Default payment method
     });
-    const [selectedBank, setSelectedBank] = useState(null);
 
-    const feeTypes = [
-        { id: 'semester', label: 'Semester Fee', icon: <FaGraduationCap className="text-blue-500" /> },
-        { id: 'exam', label: 'Exam Fee', icon: <FaBook className="text-green-500" /> },
-        { id: 'transport', label: 'Transport Fee', icon: <FaBus className="text-yellow-500" /> },
-        { id: 'hostel', label: 'Hostel Fee', icon: <FaHome className="text-red-500" /> },
-        { id: 'training', label: 'Training Fee', icon: <FaRegClock className="text-purple-500" /> },
-        { id: 'management', label: 'Management', icon: <FaCog className="text-gray-500" /> }
-    ];
+    useEffect(() => {
+        const script = document.createElement("script");
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.async = true;
+        document.body.appendChild(script);
 
-    const bankOptions = [
-        { 
-            id: 'sbi', 
-            name: 'State Bank of India', 
-            icon: '🏦',
-            redirectUrl: 'https://retail.onlinesbi.com/retail/login.htm'
-        },
-        { 
-            id: 'hdfc', 
-            name: 'HDFC Bank', 
-            icon: '🏦',
-            redirectUrl: 'https://netbanking.hdfcbank.com/'
-        },
-        { 
-            id: 'icici', 
-            name: 'ICICI Bank', 
-            icon: '🏦',
-            redirectUrl: 'https://infinity.icicibank.com/'
-        },
-        { 
-            id: 'axis', 
-            name: 'Axis Bank', 
-            icon: '🏦',
-            redirectUrl: 'https://retail.axisbank.co.in/'
-        },
-        { id: 'canara', name: 'Canara Bank', icon: '🏦' },
-        { id: 'pnb', name: 'Punjab National Bank', icon: '🏦' },
-        { id: 'bob', name: 'Bank of Baroda', icon: '🏦' },
-        { id: 'union', name: 'Union Bank', icon: '🏦' }
-    ];
+        return () => {
+            document.body.removeChild(script);
+        };
+    }, []);
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({
@@ -82,357 +31,191 @@ const PaymentOptions = () => {
         }));
     };
 
-    const handleFeeChange = (feeId) => {
-        setFormData(prev => ({
-            ...prev,
-            fees: prev.fees.includes(feeId)
-                ? prev.fees.filter(f => f !== feeId)
-                : [...prev.fees, feeId]
-        }));
-    };
-
-    const handleImageUpload = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            if (file.size > 5 * 1024 * 1024) { // 5MB limit
-                alert('File size should not exceed 5MB');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                handleInputChange('image', reader.result);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const calculateTotalAmount = () => {
-        let total = 0;
-        if (formData.fees.includes('exam')) {
-            if (formData.examType === 'regular') {
-                total += 1000; // Regular exam fee
-            } else {
-                total += formData.numberOfSubjects * 300; // Supplementary fee per subject
-            }
-        }
-        // Add other fee calculations here
-        return total;
-    };
-
     const handleSubmit = (e) => {
+        if (formData.paymentMethod === 'qr') {
+            alert('✅ Please complete the payment by scanning the QR code. After payment, take a screenshot for your records.');
+            return;
+        }
         e.preventDefault();
-        
-        // Validation
-        if (formData.fees.length === 0) {
-            alert('Please select at least one fee type');
+
+        if (!formData.feeType) {
+            alert("⚠️ Please select a fee category.");
+            return;
+        }
+        if (!formData.amount || formData.amount <= 0) {
+            alert("💰 Please enter a valid amount.");
             return;
         }
 
-        if (formData.amount <= 0) {
-            alert('Please enter a valid amount');
+        if (typeof window.Razorpay === "undefined") {
+            alert("🚨 Razorpay SDK failed to load. Check your internet connection.");
             return;
         }
 
-        // Create payment data
-        const paymentData = {
-            ...formData,
-            totalAmount: calculateTotalAmount(),
-            timestamp: new Date().toISOString()
+        const options = {
+            "key": "rzp_test_vb45nFoL6qiUnU",
+            "amount": formData.amount * 100,
+            "currency": "INR",
+            "description": formData.feeType + " Payment",
+            "prefill": {
+                "email": "student@example.com",
+                "contact": "9876543210",
+            },
+            "handler": function (response) {
+                alert("✅ Payment Successful! Payment ID: " + response.razorpay_payment_id);
+            }
         };
 
-        console.log('Submitting payment:', paymentData);
-        // Add API call here
+        const rzp1 = new window.Razorpay(options);
+        rzp1.open();
     };
 
-    const handleBankSelection = (bank) => {
-        // You might want to add some state management or API call here
-        // before redirecting to the bank's website
-        window.open(bank.redirectUrl, '_blank');
-    };
-
-    const renderPaymentMethods = () => (
-        <div className="space-y-6">
-            <h3 className="text-lg font-semibold mb-6">Select Payment Method</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button
-                    onClick={() => {
-                        setSelectedPaymentMethod('upi');
-                        setShowForm(true);
-                    }}
-                    className="p-6 border rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all duration-200"
-                >
-                    <div className="flex flex-col items-center gap-3">
-                        <FaMoneyBillWave className="text-3xl text-green-500" />
-                        <div className="text-center">
-                            <h4 className="font-semibold">UPI Payment</h4>
-                            <p className="text-sm text-gray-600">Pay using UPI apps</p>
-                        </div>
-                    </div>
-                </button>
-
-                <button
-                    onClick={() => {
-                        setSelectedPaymentMethod('netbanking');
-                        setShowForm(true);
-                    }}
-                    className="p-6 border rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all duration-200"
-                >
-                    <div className="flex flex-col items-center gap-3">
-                        <FaGraduationCap className="text-3xl text-blue-500" />
-                        <div className="text-center">
-                            <h4 className="font-semibold">Net Banking</h4>
-                            <p className="text-sm text-gray-600">Pay using Net Banking</p>
-                        </div>
-                    </div>
-                </button>
-            </div>
-        </div>
-    );
-
-    const renderNetBankingOptions = () => (
-        <div className="space-y-6">
-            <h3 className="text-lg font-semibold mb-4">Select Your Bank</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {bankOptions.map(bank => (
-                    <button
-                        key={bank.id}
-                        onClick={() => handleBankSelection(bank)}
-                        className="p-4 border rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all duration-200"
-                    >
-                        <div className="flex items-center gap-3">
-                            <span className="text-2xl">{bank.icon}</span>
-                            <span className="font-medium">{bank.name}</span>
-                        </div>
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
+    const paymentMethods = [
+        {
+            id: 'razorpay',
+            name: 'Razorpay',
+            icon: <FaCreditCard className="text-2xl text-blue-500" />,
+            description: 'Pay securely using Razorpay'
+        },
+        {
+            id: 'qr',
+            name: 'QR Code',
+            icon: <FaQrcode className="text-2xl text-indigo-500" />,
+            description: 'Scan and pay using any payment app'
+        }
+    ];
 
     return (
-        <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-md mb-4">
-            <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                    <FaMoneyBillWave className="text-green-500 text-2xl" />
-                    <h2 className="text-xl font-semibold">Payment Options</h2>
+        <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            className="max-w-4xl mx-auto p-6 space-y-8 animate-fade-in"
+        >
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold mb-2 gradient-text">Fee Payment</h2>
+                    <p className="text-secondary-color">Complete your payment securely</p>
                 </div>
-                {selectedPaymentMethod && (
-                    <button
-                        onClick={() => {
-                            setSelectedPaymentMethod(null);
-                            setSelectedBank(null);
-                        }}
-                        className="text-blue-500 hover:text-blue-600 flex items-center gap-2"
-                    >
-                        <FaArrowLeft /> Back
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-secondary-color">Need help?</span>
+                    <button className="text-primary-color hover:text-primary-dark transition-colors">
+                        <FaQuestionCircle className="text-xl" />
                     </button>
-                )}
+                </div>
             </div>
 
-            {!selectedPaymentMethod ? (
-                renderPaymentMethods()
-            ) : selectedPaymentMethod === 'netbanking' ? (
-                renderNetBankingOptions()
-            ) : (
-                <div>
-                    <h3 className="text-lg font-semibold mb-4">UPI Payment</h3>
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        {/* QR Code */}
-                        <div className="flex flex-col items-center mb-6">
-                            <div className="p-4 bg-white rounded-lg shadow-md">
-                                <QRCodeCanvas 
-                                    value={`https://payment-link.com?year=${formData.year}&semester=${formData.semester}`} 
-                                    size={200}
-                                    level="H"
-                                    includeMargin={true}
-                                />
-                            </div>
-                            <div className="mt-4 text-center">
-                                <p className="text-gray-600 mb-1">UPI ID:</p>
-                                <div className="flex items-center justify-center gap-2 bg-gray-50 px-4 py-2 rounded-lg border">
-                                    <span className="font-medium text-gray-800">7840054568@upi</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            navigator.clipboard.writeText('7840054568@upi');
-                                            alert('UPI ID copied to clipboard!');
-                                        }}
-                                        className="text-blue-500 hover:text-blue-600"
-                                    >
-                                        <FaCopy />
-                                    </button>
-                                </div>
-                                <p className="text-sm text-gray-500 mt-2">
-                                    Scan QR code or use UPI ID to make payment
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Year Selection */}
-                        <div className="relative">
-                            <label className="block text-gray-700 font-semibold mb-2">
-                                <FaCalendarAlt className="inline mr-2 text-blue-500" />
-                                Regulation Year
-                            </label>
-                            <select
-                                value={formData.year}
-                                onChange={(e) => handleInputChange('year', e.target.value)}
-                                className="border rounded-lg p-2 w-full focus:ring-2 focus:ring-blue-500"
-                            >
-                                {[...Array(14)].map((_, index) => (
-                                    <option key={index} value={new Date().getFullYear() - index}>
-                                        {new Date().getFullYear() - index}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Fee Types */}
-                        <div>
-                            <label className="block text-gray-700 font-semibold mb-2">
-                                <FaMoneyBillWave className="inline mr-2 text-green-500" />
-                                Select Fees
-                            </label>
-                            <div className="grid grid-cols-2 gap-4">
-                                {feeTypes.map(fee => (
-                                    <label key={fee.id} className="flex items-center p-3 border rounded-lg hover:bg-gray-50">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.fees.includes(fee.id)}
-                                            onChange={() => handleFeeChange(fee.id)}
-                                            className="mr-3"
-                                        />
-                                        {fee.icon}
-                                        <span className="ml-2">{fee.label}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Exam Type Options */}
-                        {formData.fees.includes('exam') && (
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-gray-700 font-semibold mb-2">
-                                        <FaBook className="inline mr-2 text-green-500" />
-                                        Exam Type
-                                    </label>
-                                    <div className="flex gap-4">
-                                        {['regular', 'supple'].map(type => (
-                                            <label key={type} className="flex items-center">
-                                                <input
-                                                    type="radio"
-                                                    value={type}
-                                                    checked={formData.examType === type}
-                                                    onChange={(e) => handleInputChange('examType', e.target.value)}
-                                                    className="mr-2"
-                                                />
-                                                {type.charAt(0).toUpperCase() + type.slice(1)}
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {formData.examType === 'supple' && (
-                                    <div>
-                                        <label className="block text-gray-700 font-semibold mb-2">
-                                            Number of Subjects (₹300 per subject)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            value={formData.numberOfSubjects}
-                                            onChange={(e) => handleInputChange('numberOfSubjects', parseInt(e.target.value))}
-                                            className="border rounded-lg p-2 w-full focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Amount Input */}
-                        <div className="relative">
-                            <label className="block text-gray-700 font-semibold mb-2">
-                                <FaRupeeSign className="inline mr-2 text-green-500" />
-                                Amount
-                            </label>
-                            <div className="relative">
-                                <input
-                                    type="number"
-                                    value={formData.amount}
-                                    onChange={(e) => handleInputChange('amount', parseFloat(e.target.value))}
-                                    className="border rounded-lg p-2 w-full pl-8 focus:ring-2 focus:ring-blue-500"
-                                    placeholder="Enter amount"
-                                />
-                                <FaRupeeSign className="absolute left-3 top-3 text-gray-400" />
-                            </div>
-                        </div>
-
-                        {/* Message Input */}
-                        <div>
-                            <label className="block text-gray-700 font-semibold mb-2">
-                                <FaPaperPlane className="inline mr-2 text-blue-500" />
-                                Message
-                            </label>
-                            <textarea
-                                value={formData.message}
-                                onChange={(e) => handleInputChange('message', e.target.value)}
-                                className="border rounded-lg p-2 w-full focus:ring-2 focus:ring-blue-500"
-                                rows="3"
-                                placeholder="Add any additional information"
-                            />
-                        </div>
-
-                        {/* Image Upload */}
-                        <div>
-                            <label className="block text-gray-700 font-semibold mb-2">
-                                <FaImage className="inline mr-2 text-purple-500" />
-                                Upload Payment Screenshot
-                            </label>
-                            <div className="flex items-center justify-center w-full">
-                                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                        <FaUpload className="text-gray-400 mb-2" />
-                                        <p className="text-sm text-gray-500">Click to upload screenshot</p>
-                                    </div>
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleImageUpload}
-                                        className="hidden"
-                                    />
-                                </label>
-                            </div>
-                        </div>
-
-                        {/* Image Preview */}
-                        {formData.image && (
-                            <div className="mt-4">
-                                <p className="text-sm font-semibold mb-2">Preview:</p>
-                                <img
-                                    src={formData.image}
-                                    alt="Payment Screenshot"
-                                    className="max-w-full h-auto rounded-lg"
-                                />
-                            </div>
-                        )}
-
-                        {/* Submit Button */}
-                        
-                        <button
-                            type="submit"
-                            className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition duration-200 flex items-center justify-center gap-2"
+            <div className="dashboard-card p-8 space-y-6">
+                    <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">Fee Category</label>
+                        <select 
+                            className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-color focus:border-transparent transition-all"
+                            onChange={(e) => handleInputChange('feeType', e.target.value)}
                         >
-                            <FaPaperPlane />
-                            Submit Payment
-                        </button>
-                    </form>
-                </div>
-            )}
-        </div>
+                            <option value="">Select category</option>
+                            <option value="Tuition Fee">Tuition Fee</option>
+                            <option value="Hostel Fee">Hostel Fee</option>
+                            <option value="Exam Fee">Exam Fee</option>
+                            <option value="Bus Fee">Bus Fee</option>
+                            <option value="Others">Others</option>
+                        </select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">Amount (INR)</label>
+                        <input 
+                            type="number" 
+                            className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-color focus:border-transparent transition-all"
+                            onChange={(e) => handleInputChange('amount', e.target.value)} 
+                            placeholder="Enter amount" 
+                        />
+                    </div>
+
+                    <div className="space-y-4">
+                        <label className="block text-sm font-medium text-gray-700">Payment Method</label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {paymentMethods.map((method) => (
+                                <div
+                                    key={method.id}
+                                    onClick={() => handleInputChange('paymentMethod', method.id)}
+                                    className={`dashboard-card p-4 cursor-pointer transition-all duration-300
+                                        ${formData.paymentMethod === method.id ? 'ring-2 ring-primary-color ring-offset-2' : ''}`}
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div className={`p-3 rounded-xl ${formData.paymentMethod === method.id ? 'bg-blue-50' : 'bg-gray-50'}`}>
+                                            {method.icon}
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="font-semibold mb-1">{method.name}</h3>
+                                            <p className="text-sm text-secondary-color">{method.description}</p>
+                                        </div>
+                                        <div className={`w-5 h-5 rounded-full border-2 ${formData.paymentMethod === method.id ? 'border-primary-color bg-primary-color' : 'border-gray-300'}`}>
+                                            {formData.paymentMethod === method.id && (
+                                                <div className="w-full h-full flex items-center justify-center">
+                                                    <FaCheck className="text-white text-xs" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                <AnimatePresence>
+                    {formData.paymentMethod === 'qr' && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="mt-8 flex flex-col items-center justify-center p-8 bg-gray-50 rounded-xl"
+                        >
+                            <div className="mb-4 text-center">
+                                <h3 className="text-xl font-semibold mb-2">Scan QR Code to Pay</h3>
+                                <p className="text-secondary-color">Use any UPI app to scan and pay</p>
+                            </div>
+                            <motion.div 
+                                className="bg-white p-4 rounded-xl shadow-lg"
+                                whileHover={{ scale: 1.02 }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                <img
+                                    src={QRCode}
+                                    alt="Payment QR Code"
+                                    className="w-64 h-64 object-contain"
+                                />
+                            </motion.div>
+                            <div className="mt-6 flex gap-4">
+                                <motion.button 
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    className="button-primary flex items-center gap-2"
+                                >
+                                    <FaDownload />
+                                    Save QR
+                                </motion.button>
+                                <motion.button 
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    className="py-2 px-4 rounded-xl border border-gray-300 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                                >
+                                    <FaShare />
+                                    Share
+                                </motion.button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+                <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full button-primary py-4 mt-6 text-lg font-medium flex items-center justify-center gap-2"
+                    onClick={handleSubmit}
+                >
+                    <FaCreditCard />
+                    Complete Payment
+                </motion.button>
+            </div>
+        </motion.div>
     );
 };
 
 export default PaymentOptions;
-
