@@ -38,7 +38,7 @@ const Profile = () => {
 
     // Mapping of student IDs to their respective default avatars
     const defaultAvatars = {
-        '2121A05D3': defaultAvatar1,
+        '21A21A05D3': defaultAvatar1, // Corrected the typo here
         '21A21A05D4': defaultAvatar2,
         '21A21A05D5': defaultAvatar3,
         '21A21A05D6': defaultAvatar4,
@@ -109,6 +109,13 @@ const Profile = () => {
         setIsEditing(false);
     };
 
+    const handleImageError = (e) => {
+        const defaultAvatar = defaultAvatars[studentData.id] || profileImage;
+        e.target.onerror = null; // Prevent infinite loop
+        e.target.src = defaultAvatar;
+        console.error(`Failed to load image: ${avatar}. Using default avatar: ${defaultAvatar}`);
+    };
+
     return (
         <div className={`${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-black'} min-h-screen p-6 rounded-lg shadow-md`}>
             <div className="flex justify-between items-center mb-6">
@@ -125,12 +132,7 @@ const Profile = () => {
                                 src={avatar}
                                 alt="Profile"
                                 className="w-full h-full object-cover"
-                                onError={(e) => {
-                                    const defaultAvatar = defaultAvatars[studentData.id] || profileImage;
-                                    e.target.onerror = null;
-                                    e.target.src = defaultAvatar;
-                                    console.error(`Failed to load image: ${avatar}`);
-                                }}
+                                onError={handleImageError}
                             />
                         </div>
                         {isEditing && (

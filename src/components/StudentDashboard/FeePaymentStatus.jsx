@@ -161,7 +161,7 @@ const FeePaymentStatus = () => {
                         ))}
                     </tbody>
                 </table>
-            </div>
+            </div> 
         </div>
     );
 };
