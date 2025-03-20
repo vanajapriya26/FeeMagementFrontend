@@ -1,198 +1,251 @@
 import React, { useState, useEffect } from 'react';
 import {
-    FaUser, FaEnvelope, FaIdCard, FaGraduationCap, FaPhone,
-    FaEdit, FaSave, FaTimes, FaCamera, FaSun, FaMoon, FaCalendar
+  FaUser, FaEnvelope, FaIdCard, FaGraduationCap, FaPhone,
+  FaEdit, FaSave, FaTimes, FaCamera, FaSun, FaMoon, FaCalendar
 } from 'react-icons/fa';
-import { useFee } from '../../context/FeeContext';
-import profileImage from '../../assests/me.jpeg';
-import defaultAvatar1 from '../../assests/2121A05D3.png';
-import defaultAvatar2 from '../../assests/21A21A05D4.png';
-import defaultAvatar3 from '../../assests/21A21A05D5.png';
-import defaultAvatar4 from '../../assests/21A21A05D6.png';
-import defaultAvatar5 from '../../assests/21A21A05D7.png';
-import defaultAvatar6 from '../../assests/21A21A05D8.png';
-import defaultAvatar7 from '../../assests/21A21A05D9.png';
-import defaultAvatar8 from '../../assests/21A21A05E0.png';
-import defaultAvatar9 from '../../assests/21A21A05E1.png';
+import axios from 'axios';
 
 const Profile = () => {
-    const { currentStudent, feeCategories, addFeeCategory } = useFee();
-    const newFeeCategory = { name: 'Default Category', amount: 0 }; // Define newFeeCategory
+  const defaultStudentData = {
+    name: '',
+    email: '',
+    id: '',
+    department: '',
+    year: '',
+    semester: '',
+    contactNumber: '',
+    avatar: 'https://res.cloudinary.com/djcwbfcdl/image/upload/v1742056127/D3_efrmdz.png'
+  };
 
-    const defaultStudentData = {
-        name: currentStudent?.name || '',
-        email: currentStudent?.email || '',
-        id: currentStudent?.regNo || '',
-        department: currentStudent?.department || '',
-        year: `${currentStudent?.yearOfStudy || ''}${currentStudent?.yearOfStudy ? ' Year' : ''}`,
-        semester: `${currentStudent?.semester || ''}${currentStudent?.semester ? 'th Semester' : ''}`,
-        contactNumber: currentStudent?.contactNumber || '',
-        avatar: currentStudent?.avatar || profileImage // Use avatar from context
-    };
+  const [studentData, setStudentData] = useState(defaultStudentData);
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempData, setTempData] = useState(defaultStudentData);
+  const [avatar, setAvatar] = useState(defaultStudentData.avatar);
+  const [darkMode, setDarkMode] = useState(false);
 
-    const [studentData, setStudentData] = useState(defaultStudentData);
-    const [isEditing, setIsEditing] = useState(false);
-    const [tempData, setTempData] = useState(defaultStudentData);
-    const [avatar, setAvatar] = useState(defaultStudentData.avatar); // Set default avatar
-    const [darkMode, setDarkMode] = useState(false);
-
-    // Mapping of student IDs to their respective default avatars
-    const defaultAvatars = {
-        '21A21A05D3': defaultAvatar1, // Corrected the typo here
-        '21A21A05D4': defaultAvatar2,
-        '21A21A05D5': defaultAvatar3,
-        '21A21A05D6': defaultAvatar4,
-        '21A21A05D7': defaultAvatar5,
-        '21A21A05D8': defaultAvatar6,
-        '21A21A05D9': defaultAvatar7,
-        '21A21A05E0': defaultAvatar8,
-        '21A21A05E1': defaultAvatar9,
-    };
-
-    useEffect(() => {
-        if (currentStudent) {
-            console.log(`Current Student Avatar: ${currentStudent?.avatar}`);
-            console.log(`Avatar State: ${avatar}`);
-            console.log(`Default Avatar: ${defaultStudentData.avatar}`);
-            addFeeCategory(newFeeCategory); // Call addFeeCategory here
-            const updatedData = {
-                ...defaultStudentData,
-                name: currentStudent.name,
-                email: currentStudent.email,
-                id: currentStudent.regNo,
-                department: currentStudent.department,
-                year: `${currentStudent.yearOfStudy} Year`,
-                semester: `${currentStudent.semester}th Semester`,
-                contactNumber: currentStudent.contactNumber,
-                avatar: currentStudent.avatar // Update avatar
+  useEffect(() => {
+    const fetchStudentData = async () => {
+      // First try to get the student data from localStorage
+      const storedStudent = localStorage.getItem('student');
+      const token = localStorage.getItem('token');
+      
+      if (storedStudent && token) {
+        try {
+          // Parse the stored student data
+          const studentInfo = JSON.parse(storedStudent);
+          
+          // Store the student ID for API calls
+          if (studentInfo.id) {
+            localStorage.setItem('studentId', studentInfo.id);
+          }
+          
+          // Try to get more detailed student info from the API
+          const response = await axios.get(`http://localhost:5000/students/getstudent/${studentInfo.id}`, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+          
+          const updatedData = {
+            ...defaultStudentData,
+            name: response.data.name || studentInfo.name,
+            email: response.data.email || studentInfo.email,
+            id: response.data.studentID || studentInfo.studentID,
+            department: response.data.department || studentInfo.department,
+            year: response.data.yearOfStudy ? `${response.data.yearOfStudy} Year` : '',
+            semester: response.data.semester ? `${response.data.semester} Semester` : '',
+            contactNumber: response.data.contactNumber || '',
+            avatar: response.data.profileImage || defaultStudentData.avatar
+          };
+          
+          setStudentData(updatedData);
+          setTempData(updatedData);
+          setAvatar(response.data.profileImage || defaultStudentData.avatar);
+        } catch (error) {
+          console.error('Failed to fetch student data:', error);
+          
+          // If API call fails, use the data from localStorage
+          if (storedStudent) {
+            const studentInfo = JSON.parse(storedStudent);
+            const fallbackData = {
+              ...defaultStudentData,
+              name: studentInfo.name || '',
+              email: studentInfo.email || '',
+              id: studentInfo.studentID || studentInfo.id || '',
+              department: studentInfo.department || '',
             };
+            
+            setStudentData(fallbackData);
+            setTempData(fallbackData);
+          }
+        }
+      } else {
+        // If no stored student data, try to get it from the API using studentId
+        const studentId = localStorage.getItem('studentId');
+        if (studentId && token) {
+          try {
+            const response = await axios.get(`http://localhost:5000/students/getstudent/${studentId}`, {
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            });
+            
+            const updatedData = {
+              ...defaultStudentData,
+              name: response.data.name,
+              email: response.data.email,
+              id: response.data.studentID,
+              department: response.data.department,
+              year: response.data.yearOfStudy ? `${response.data.yearOfStudy} Year` : '',
+              semester: response.data.semester ? `${response.data.semester} Semester` : '',
+              contactNumber: response.data.contactNumber || '',
+              avatar: response.data.profileImage || defaultStudentData.avatar
+            };
+            
             setStudentData(updatedData);
             setTempData(updatedData);
-            setAvatar(currentStudent.avatar); // Update avatar state
+            setAvatar(response.data.profileImage || defaultStudentData.avatar);
+          } catch (error) {
+            console.error('Failed to fetch student data:', error);
+          }
         }
-    }, [currentStudent]);
-
-    const handleAvatarChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => setAvatar(reader.result);
-            reader.readAsDataURL(file);
-        }
+      }
     };
 
-    const handleInputChange = (e, field) => {
-        setTempData({ ...tempData, [field]: e.target.value });
-    };
+    fetchStudentData();
+  }, []);
 
-    const handleUpdate = () => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        const phoneRegex = /^\d{3}-\d{3}-\d{4}$/;
-        if (!tempData.name.trim() || !tempData.email.trim() || !tempData.contactNumber.trim()) {
-            alert('Please fill in all required fields');
-            return;
-        }
-        if (!emailRegex.test(tempData.email)) {
-            alert('Please enter a valid email address');
-            return;
-        }
-        if (!phoneRegex.test(tempData.contactNumber)) {
-            alert('Please enter a valid phone number (format: 123-456-7890)');
-            return;
-        }
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', 'Student Images');
+
+      try {
+        const response = await axios.post('https://api.cloudinary.com/v1_1/djcwbfcdl/upload', formData);
+        setAvatar(response.data.secure_url);
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        alert('Failed to upload image');
+      }
+    }
+  };
+
+  const handleUpdate = async () => {
+    const studentId = localStorage.getItem('studentId');
+    const token = localStorage.getItem('token');
+    
+    if (studentId && token) {
+      try {
+        const response = await axios.put(`http://localhost:5000/students/updatestudent/${studentId}`, 
+          {
+            name: tempData.name,
+            email: tempData.email,
+            yearOfStudy: parseInt(tempData.year.split(' ')[0]),
+            semester: parseInt(tempData.semester.split(' ')[0]),
+            contactNumber: tempData.contactNumber,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+        
         setStudentData({ ...tempData, avatar });
         setIsEditing(false);
-    };
+        
+        // Update the student data in localStorage
+        const storedStudent = localStorage.getItem('student');
+        if (storedStudent) {
+          const studentInfo = JSON.parse(storedStudent);
+          const updatedStudentInfo = {
+            ...studentInfo,
+            name: tempData.name,
+            email: tempData.email
+          };
+          localStorage.setItem('student', JSON.stringify(updatedStudentInfo));
+        }
+      } catch (error) {
+        console.error('Failed to update student data:', error);
+        alert('Failed to update profile');
+      }
+    }
+  };
 
-    const handleCancel = () => {
-        setTempData(studentData);
-        setIsEditing(false);
-    };
-
-    const handleImageError = (e) => {
-        const defaultAvatar = defaultAvatars[studentData.id] || profileImage;
-        e.target.onerror = null; // Prevent infinite loop
-        e.target.src = defaultAvatar;
-        console.error(`Failed to load image: ${avatar}. Using default avatar: ${defaultAvatar}`);
-    };
-
-    return (
-        <div className={`${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-black'} min-h-screen p-6 rounded-lg shadow-md`}>
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-semibold">Profile Information</h2>
-                <button onClick={() => setDarkMode(!darkMode)} className="text-2xl">
-                    {darkMode ? <FaSun className="text-yellow-400" /> : <FaMoon className="text-gray-600" />}
-                </button>
+  return (
+    <div className={`${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-black'} min-h-screen p-6 rounded-lg shadow-md`}>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-semibold">Profile Information</h2>
+        <button onClick={() => setDarkMode(!darkMode)} className="text-2xl">
+          {darkMode ? <FaSun className="text-yellow-400" /> : <FaMoon className="text-gray-600" />}
+        </button>
+      </div>
+      <div className="bg-white p-6 rounded-lg shadow-md dark:bg-gray-800">
+        <div className="flex justify-center mb-6">
+          <div className="relative">
+            <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+              <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
             </div>
-            <div className="bg-white p-6 rounded-lg shadow-md dark:bg-gray-800">
-                <div className="flex justify-center mb-6">
-                    <div className="relative">
-                        <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
-                            <img
-                                src={avatar}
-                                alt="Profile"
-                                className="w-full h-full object-cover"
-                                onError={handleImageError}
-                            />
-                        </div>
-                        {isEditing && (
-                            <label className="absolute bottom-0 right-0 bg-blue-500 p-2 rounded-full cursor-pointer hover:bg-blue-600">
-                                <FaCamera className="text-white" />
-                                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-                            </label>
-                        )}
-                    </div>
-                </div>
-
-                {!isEditing ? (
-                    <div>
-                        {[['Full Name', studentData.name, FaUser], ['Student ID', studentData.id, FaIdCard],
-                          ['Email', studentData.email, FaEnvelope], ['Department', studentData.department, FaGraduationCap],
-                          ['Year of Study', studentData.year, FaCalendar], ['Semester', studentData.semester, FaCalendar],
-                          ['Contact Number', studentData.contactNumber, FaPhone]].map(([label, value, Icon], idx) => (
-                            <div key={idx} className="flex items-center gap-3 mb-4">
-                                <Icon className="text-blue-500" />
-                                <div>
-                                    <p className="text-gray-600 text-sm">{label}</p>
-                                    <p className="font-semibold">{value}</p>
-                                </div>
-                            </div>
-                        ))}
-
-                        <button onClick={() => setIsEditing(true)} className="mt-6 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2">
-                            <FaEdit /> Edit Profile
-                        </button>
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        {[['Full Name', 'name', FaUser], ['Email', 'email', FaEnvelope], ['Year of Study', 'year', FaCalendar],
-                          ['Semester', 'semester', FaCalendar], ['Contact Number', 'contactNumber', FaPhone]].map(([label, field, Icon], idx) => (
-                            <div key={idx}>
-                                <label className="block text-gray-700 mb-2">{label}</label>
-                                <div className="relative">
-                                    <input
-                                        type={field === 'email' ? 'email' : 'text'}
-                                        value={tempData[field]}
-                                        onChange={(e) => handleInputChange(e, field)}
-                                        className="pl-10 p-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-blue-500"
-                                    />
-                                    <Icon className="absolute left-3 top-3 text-gray-400" />
-                                </div>
-                            </div>
-                        ))}
-                        <div className="flex gap-2 mt-6">
-                            <button onClick={handleUpdate} className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 flex items-center gap-2">
-                                <FaSave /> Save Changes
-                            </button>
-                            <button onClick={handleCancel} className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 flex items-center gap-2">
-                                <FaTimes /> Cancel
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </div>
+            {isEditing && (
+              <label className="absolute bottom-0 right-0 bg-blue-500 p-2 rounded-full cursor-pointer hover:bg-blue-600">
+                <FaCamera className="text-white" />
+                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+              </label>
+            )}
+          </div>
         </div>
-    );
+
+        {!isEditing ? (
+          <div>
+            {[['Full Name', studentData.name, FaUser], ['Student ID', studentData.id, FaIdCard],
+              ['Email', studentData.email, FaEnvelope], ['Department', studentData.department, FaGraduationCap],
+              ['Year of Study', studentData.year, FaCalendar], ['Semester', studentData.semester, FaCalendar],
+              ['Contact Number', studentData.contactNumber, FaPhone]].map(([label, value, Icon], idx) => (
+                <div key={idx} className="flex items-center gap-3 mb-4">
+                  <Icon className="text-blue-500" />
+                  <div>
+                    <p className="text-gray-600 text-sm">{label}</p>
+                    <p className="font-semibold">{value}</p>
+                  </div>
+                </div>
+              ))}
+
+            <button onClick={() => setIsEditing(true)} className="mt-6 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2">
+              <FaEdit /> Edit Profile
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {[['Full Name', 'name', FaUser], ['Email', 'email', FaEnvelope], ['Year of Study', 'year', FaCalendar],
+              ['Semester', 'semester', FaCalendar], ['Contact Number', 'contactNumber', FaPhone]].map(([label, field, Icon], idx) => (
+                <div key={idx}>
+                  <label className="block text-gray-700 mb-2">{label}</label>
+                  <div className="relative">
+                    <input
+                      type={field === 'email' ? 'email' : 'text'}
+                      value={tempData[field]}
+                      onChange={(e) => setTempData({ ...tempData, [field]: e.target.value })}
+                      className="pl-10 p-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-blue-500"
+                    />
+                    <Icon className="absolute left-3 top-3 text-gray-400" />
+                  </div>
+                </div>
+              ))}
+            <div className="flex gap-2 mt-6">
+              <button onClick={handleUpdate} className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 flex items-center gap-2">
+                <FaSave /> Save Changes
+              </button>
+              <button onClick={() => setIsEditing(false)} className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 flex items-center gap-2">
+                <FaTimes /> Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default Profile;

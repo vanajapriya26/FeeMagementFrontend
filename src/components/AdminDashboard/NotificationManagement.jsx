@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaBell, FaPlus, FaTrash, FaEdit, FaTimes } from 'react-icons/fa';
 import { useFee } from '../../context/FeeContext';
+import { addNotification as sendNotificationAPI } from '../../services/api';
 
 const NotificationManagement = () => {
     const { notifications, addNotification, deleteNotification } = useFee();
@@ -9,27 +10,59 @@ const NotificationManagement = () => {
     const [formData, setFormData] = useState({
         title: '',
         message: '',
-        type: 'info',
-        priority: 'normal'
+        type: 'Information',
+        priority: 'Low'
     });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const newNotification = {
-            id: Date.now().toString(),
-            ...formData,
-            date: new Date().toISOString(),
-            read: false,
-            fromAdmin: true
-        };
-        addNotification(newNotification);
-        setFormData({
-            title: '',
-            message: '',
-            type: 'info',
-            priority: 'normal'
-        });
-        setShowForm(false);
+        setLoading(true);
+        setError('');
+        setSuccess('');
+
+        try {
+            // Send notification to backend
+            const response = await sendNotificationAPI(
+                formData.title,
+                formData.message,
+                formData.type,
+                formData.priority
+            );
+
+            console.log('Notification sent successfully:', response);
+            
+            // Add to local state
+            const newNotification = {
+                id: response.notification._id || Date.now().toString(),
+                title: formData.title,
+                message: formData.message,
+                type: formData.type.toLowerCase(),
+                priority: formData.priority.toLowerCase(),
+                date: new Date().toISOString(),
+                read: false,
+                fromAdmin: true
+            };
+            
+            addNotification(newNotification);
+            setSuccess('Notification sent successfully!');
+            
+            // Reset form
+            setFormData({
+                title: '',
+                message: '',
+                type: 'Information',
+                priority: 'Low'
+            });
+            setShowForm(false);
+        } catch (error) {
+            console.error('Failed to send notification:', error);
+            setError(error.message || 'Failed to send notification. Please try again.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleInputChange = (e) => {
@@ -39,6 +72,16 @@ const NotificationManagement = () => {
             [name]: value
         }));
     };
+
+    // Clear success message after 3 seconds
+    useEffect(() => {
+        if (success) {
+            const timer = setTimeout(() => {
+                setSuccess('');
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [success]);
 
     return (
         <div className="bg-white rounded-lg shadow-lg p-6 max-w-4xl mx-auto">
@@ -50,10 +93,23 @@ const NotificationManagement = () => {
                 <button
                     onClick={() => setShowForm(!showForm)}
                     className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-600 transition-colors"
+                    disabled={loading}
                 >
                     <FaPlus /> Create Notification
                 </button>
             </div>
+
+            {error && (
+                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+                    {error}
+                </div>
+            )}
+
+            {success && (
+                <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-lg">
+                    {success}
+                </div>
+            )}
 
             <AnimatePresence>
                 {showForm && (
@@ -102,9 +158,9 @@ const NotificationManagement = () => {
                                         onChange={handleInputChange}
                                         className="w-full p-2 border rounded-lg"
                                     >
-                                        <option value="info">Information</option>
-                                        <option value="warning">Warning</option>
-                                        <option value="urgent">Urgent</option>
+                                        <option value="Information">Information</option>
+                                        <option value="Warning">Warning</option>
+                                        <option value="Urgent">Urgent</option>
                                     </select>
                                 </div>
                                 <div>
@@ -117,9 +173,9 @@ const NotificationManagement = () => {
                                         onChange={handleInputChange}
                                         className="w-full p-2 border rounded-lg"
                                     >
-                                        <option value="low">Low</option>
-                                        <option value="normal">Normal</option>
-                                        <option value="high">High</option>
+                                        <option value="Low">Low</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="High">High</option>
                                     </select>
                                 </div>
                             </div>
@@ -128,14 +184,16 @@ const NotificationManagement = () => {
                                     type="button"
                                     onClick={() => setShowForm(false)}
                                     className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                                    disabled={loading}
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                                    className={`px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                    disabled={loading}
                                 >
-                                    Send Notification
+                                    {loading ? 'Sending...' : 'Send Notification'}
                                 </button>
                             </div>
                         </div>
@@ -169,7 +227,7 @@ const NotificationManagement = () => {
                                     <span className={`px-2 py-1 rounded-full text-xs ${
                                         notification.priority === 'high' 
                                             ? 'bg-red-100 text-red-800'
-                                            : notification.priority === 'normal'
+                                            : notification.priority === 'medium'
                                                 ? 'bg-yellow-100 text-yellow-800'
                                                 : 'bg-green-100 text-green-800'
                                     }`}>
@@ -195,20 +253,6 @@ const NotificationManagement = () => {
             </div>
         </div>
     );
-};
-
-// Function to send notification to backend
-export const sendNotificationToBackend = async (notification) => {
-    // Implement the logic to send the notification to the backend API
-    // For example:
-    const response = await fetch('/api/notifications', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(notification),
-    });
-    return response.json();
 };
 
 export default NotificationManagement;

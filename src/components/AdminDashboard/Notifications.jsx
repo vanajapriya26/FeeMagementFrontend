@@ -1,11 +1,9 @@
-// src/components/AdminDashboard/Notifications.js
-
 import React, { useState } from 'react';
-import { 
-    FaBell, 
-    FaExclamationCircle, 
-    FaInfoCircle, 
-    FaCheckCircle, 
+import {
+    FaBell,
+    FaExclamationCircle,
+    FaInfoCircle,
+    FaCheckCircle,
     FaTimes,
     FaCalendarAlt,
     FaPlus
@@ -71,30 +69,62 @@ const Notifications = () => {
         }
     };
 
-    const handleCreateNotification = () => {
+    const addNotificationToBackend = async (notification) => {
+        try {
+            const response = await fetch('http://localhost:5000/admin/addnotification', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: notification.title,
+                    message: notification.message,
+                    recipientType: notification.targetStudent || 'all'
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to add notification');
+            }
+
+            const data = await response.json();
+            return data.notification;
+        } catch (error) {
+            console.error('Error adding notification:', error);
+            throw error;
+        }
+    };
+
+    const handleCreateNotification = async () => {
         if (!newNotification.title.trim() || !newNotification.message.trim()) {
             alert('Please fill in both title and message fields');
             return;
         }
 
-        const notification = {
-            id: notifications.length + 1,
-            type: newNotification.type,
-            title: newNotification.title,
-            message: newNotification.message,
-            date: new Date().toISOString().split('T')[0],
-            read: false,
-            targetStudent: newNotification.targetStudent || null
-        };
+        try {
+            const notification = {
+                id: notifications.length + 1,
+                type: newNotification.type,
+                title: newNotification.title,
+                message: newNotification.message,
+                date: new Date().toISOString().split('T')[0],
+                read: false,
+                targetStudent: newNotification.targetStudent || null
+            };
 
-        setNotifications([notification, ...notifications]);
-        setNewNotification({
-            type: 'info',
-            title: '',
-            message: '',
-            targetStudent: ''
-        });
-        setShowNotificationForm(false);
+            const addedNotification = await addNotificationToBackend(notification);
+
+            setNotifications([addedNotification, ...notifications]);
+            setNewNotification({
+                type: 'info',
+                title: '',
+                message: '',
+                targetStudent: ''
+            });
+            setShowNotificationForm(false);
+        } catch (error) {
+            alert('Failed to add notification. Please try again.');
+        }
     };
 
     const handleMarkAsRead = (id) => {
@@ -213,9 +243,9 @@ const Notifications = () => {
                 {notifications.length > 0 ? (
                     <ul className="space-y-4">
                         {notifications.map(notification => (
-                            <li 
-                                key={notification.id} 
-                                className={`p-4 border rounded-lg relative ${notificationStyles[notification.type].wrapper} 
+                            <li
+                                key={notification.id}
+                                className={`p-4 border rounded-lg relative ${notificationStyles[notification.type].wrapper}
                                     ${notification.read ? 'opacity-75' : ''}`}
                             >
                                 <div className="flex items-start gap-3">

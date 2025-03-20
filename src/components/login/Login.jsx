@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFee } from '../../context/FeeContext';
 import bgImage from '../../assests/img.jpg';
-import { 
-    FaUser, 
-    FaUserShield, 
-    FaEnvelope, 
-    FaLock, 
-    FaIdCard, 
-    FaBuilding, 
+import { loginAdmin, loginStudent } from '../../services/api';
+import {
+    FaUser,
+    FaUserShield,
+    FaEnvelope,
+    FaLock,
+    FaIdCard,
+    FaBuilding,
     FaKey,
     FaUserPlus,
     FaSignInAlt
@@ -33,7 +34,7 @@ const InputField = ({ icon, type, name, placeholder, value, onChange }) => (
 
 const Login = (props) => {
     const navigate = useNavigate();
-    const { loginStudent } = useFee();
+    const { setCurrentStudent } = useFee();
     const [isSignup, setIsSignup] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const [formData, setFormData] = useState({
@@ -45,6 +46,8 @@ const Login = (props) => {
         adminCode: '',
         confirmPassword: '',
     });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -54,59 +57,90 @@ const Login = (props) => {
         }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        
+        setError('');
+        setLoading(true);
+
         if (isSignup) {
             if (isAdmin) {
                 if (formData.password !== formData.confirmPassword) {
-                    alert('Passwords do not match!');
+                    setError('Passwords do not match!');
+                    setLoading(false);
                     return;
                 }
                 if (!formData.email || !formData.password || !formData.name) {
-                    alert('Please fill in all required fields');
+                    setError('Please fill in all required fields');
+                    setLoading(false);
                     return;
                 }
             } else {
                 if (!formData.email || !formData.password || !formData.name || !formData.registerId || !formData.department) {
-                    alert('Please fill in all required fields');
+                    setError('Please fill in all required fields');
+                    setLoading(false);
                     return;
                 }
             }
         } else {
             if (isAdmin) {
                 if (!formData.name || !formData.password || !formData.adminCode) {
-                    alert('Please fill in all required fields');
+                    setError('Please fill in all required fields');
+                    setLoading(false);
                     return;
                 }
             } else {
                 if (!formData.registerId || !formData.password) {
-                    alert('Please fill in all required fields');
+                    setError('Please fill in all required fields');
+                    setLoading(false);
                     return;
                 }
             }
         }
 
         if (!isSignup) {
-            if (isAdmin) {
-                props.onLogin('admin');
-                navigate('/admin-dashboard');
-            } else {
-                // Try to login with student ID
-                const loginSuccess = loginStudent(formData.registerId);
-                if (loginSuccess) {
+            try {
+                let response;
+                if (isAdmin) {
+                    console.log('Admin Login Request:', {
+                        name: formData.name,
+                        password: formData.password,
+                        adminCode: formData.adminCode,
+                    });
+
+                    response = await loginAdmin(formData.name, formData.password, formData.adminCode);
+                    console.log('Admin Login Response:', response);
+                    
+                    props.onLogin('admin');
+                    navigate('/admin-dashboard');
+                } else {
+                    console.log('Student Login Request:', {
+                        studentID: formData.registerId,
+                        password: formData.password,
+                    });
+                    
+                    response = await loginStudent(formData.registerId, formData.password);
+                    console.log('Student Login Response:', response);
+                    
+                    // Set the current student in context
+                    if (response.student) {
+                        setCurrentStudent(response.student);
+                    }
+                    
                     props.onLogin('student');
                     navigate('/student-dashboard');
-                } else {
-                    alert('Invalid Student ID. Please check and try again.');
-                    return;
                 }
+            } catch (error) {
+                console.error('Error during login:', error);
+                setError(error.response?.data?.message || 'Login failed. Please check your credentials.');
+            } finally {
+                setLoading(false);
             }
         } else {
             alert('Account created successfully! Please login.');
             setIsSignup(false);
+            setLoading(false);
         }
-        
+
         setFormData({
             email: '',
             password: '',
@@ -119,7 +153,7 @@ const Login = (props) => {
     };
 
     return (
-        <div className="min-h-screen relative overflow-hidden" style={{ 
+        <div className="min-h-screen relative overflow-hidden" style={{
             backgroundImage: `url(${bgImage})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
@@ -130,7 +164,7 @@ const Login = (props) => {
                     <h2 className="text-3xl font-semibold mb-6 text-center text-gray-800">
                         {isAdmin ? (isSignup ? 'Admin Create Account' : 'Admin Login') : (isSignup ? 'Student Create Account' : 'Student Login')}
                     </h2>
-                    
+
                     <div className="flex justify-center mb-4">
                         <button
                             onClick={() => {
@@ -156,23 +190,58 @@ const Login = (props) => {
                         </button>
                     </div>
 
+                    {error && (
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                            <span className="block sm:inline">{error}</span>
+                        </div>
+                    )}
+
                     <form onSubmit={handleSubmit} className="mt-6">
                         {!isSignup && !isAdmin && (
                             <>
-                                <InputField 
-                                    icon={<FaIdCard />} 
-                                    type="text" 
-                                    name="registerId" 
-                                    placeholder="Student ID" 
-                                    value={formData.registerId} 
+                                <InputField
+                                    icon={<FaIdCard />}
+                                    type="text"
+                                    name="registerId"
+                                    placeholder="Student ID"
+                                    value={formData.registerId}
                                     onChange={handleChange}
                                 />
-                                <InputField 
-                                    icon={<FaLock />} 
-                                    type="password" 
-                                    name="password" 
-                                    placeholder="Password" 
-                                    value={formData.password} 
+                                <InputField
+                                    icon={<FaLock />}
+                                    type="password"
+                                    name="password"
+                                    placeholder="Password"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                />
+                            </>
+                        )}
+
+                        {!isSignup && isAdmin && (
+                            <>
+                                <InputField
+                                    icon={<FaUser />}
+                                    type="text"
+                                    name="name"
+                                    placeholder="Admin Name"
+                                    value={formData.name}
+                                    onChange={handleChange}
+                                />
+                                <InputField
+                                    icon={<FaLock />}
+                                    type="password"
+                                    name="password"
+                                    placeholder="Password"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                />
+                                <InputField
+                                    icon={<FaKey />}
+                                    type="password"
+                                    name="adminCode"
+                                    placeholder="Admin Code"
+                                    value={formData.adminCode}
                                     onChange={handleChange}
                                 />
                             </>
@@ -180,110 +249,97 @@ const Login = (props) => {
 
                         {isSignup && !isAdmin && (
                             <>
-                                <InputField 
-                                    icon={<FaUser />} 
-                                    type="text" 
-                                    name="name" 
-                                    placeholder="Student Name" 
-                                    value={formData.name} 
+                                <InputField
+                                    icon={<FaUser />}
+                                    type="text"
+                                    name="name"
+                                    placeholder="Full Name"
+                                    value={formData.name}
                                     onChange={handleChange}
                                 />
-                                <InputField 
-                                    icon={<FaEnvelope />} 
-                                    type="email" 
-                                    name="email" 
-                                    placeholder="Student Email" 
-                                    value={formData.email} 
+                                <InputField
+                                    icon={<FaEnvelope />}
+                                    type="email"
+                                    name="email"
+                                    placeholder="Email Address"
+                                    value={formData.email}
                                     onChange={handleChange}
                                 />
-                                <InputField 
-                                    icon={<FaIdCard />} 
-                                    type="text" 
-                                    name="registerId" 
-                                    placeholder="Student ID" 
-                                    value={formData.registerId} 
+                                <InputField
+                                    icon={<FaIdCard />}
+                                    type="text"
+                                    name="registerId"
+                                    placeholder="Registration ID"
+                                    value={formData.registerId}
                                     onChange={handleChange}
                                 />
-                                <InputField 
-                                    icon={<FaBuilding />} 
-                                    type="text" 
-                                    name="department" 
-                                    placeholder="Department" 
-                                    value={formData.department} 
+                                <InputField
+                                    icon={<FaBuilding />}
+                                    type="text"
+                                    name="department"
+                                    placeholder="Department"
+                                    value={formData.department}
                                     onChange={handleChange}
                                 />
-                                <InputField 
-                                    icon={<FaLock />} 
-                                    type="password" 
-                                    name="password" 
-                                    placeholder="Password" 
-                                    value={formData.password} 
+                                <InputField
+                                    icon={<FaLock />}
+                                    type="password"
+                                    name="password"
+                                    placeholder="Password"
+                                    value={formData.password}
                                     onChange={handleChange}
                                 />
-                            </>
-                        )}
-
-                        {isAdmin && !isSignup && (
-                            <>
-                                <InputField 
-                                    icon={<FaUser />} 
-                                    type="text" 
-                                    name="name" 
-                                    placeholder="Admin Name" 
-                                    value={formData.name} 
-                                    onChange={handleChange}
-                                />
-                                <InputField 
-                                    icon={<FaLock />} 
-                                    type="password" 
-                                    name="password" 
-                                    placeholder="Password" 
-                                    value={formData.password} 
-                                    onChange={handleChange}
-                                />
-                                <InputField 
-                                    icon={<FaKey />} 
-                                    type="text" 
-                                    name="adminCode" 
-                                    placeholder="Admin Code" 
-                                    value={formData.adminCode} 
+                                <InputField
+                                    icon={<FaLock />}
+                                    type="password"
+                                    name="confirmPassword"
+                                    placeholder="Confirm Password"
+                                    value={formData.confirmPassword}
                                     onChange={handleChange}
                                 />
                             </>
                         )}
 
-                        {isAdmin && isSignup && (
+                        {isSignup && isAdmin && (
                             <>
-                                <InputField 
-                                    icon={<FaUser />} 
-                                    type="text" 
-                                    name="name" 
-                                    placeholder="Admin Name" 
-                                    value={formData.name} 
+                                <InputField
+                                    icon={<FaUser />}
+                                    type="text"
+                                    name="name"
+                                    placeholder="Admin Name"
+                                    value={formData.name}
                                     onChange={handleChange}
                                 />
-                                <InputField 
-                                    icon={<FaEnvelope />} 
-                                    type="email" 
-                                    name="email" 
-                                    placeholder="Admin Email" 
-                                    value={formData.email} 
+                                <InputField
+                                    icon={<FaEnvelope />}
+                                    type="email"
+                                    name="email"
+                                    placeholder="Email Address"
+                                    value={formData.email}
                                     onChange={handleChange}
                                 />
-                                <InputField 
-                                    icon={<FaLock />} 
-                                    type="password" 
-                                    name="password" 
-                                    placeholder="Password" 
-                                    value={formData.password} 
+                                <InputField
+                                    icon={<FaLock />}
+                                    type="password"
+                                    name="password"
+                                    placeholder="Password"
+                                    value={formData.password}
                                     onChange={handleChange}
                                 />
-                                <InputField 
-                                    icon={<FaLock />} 
-                                    type="password" 
-                                    name="confirmPassword" 
-                                    placeholder="Confirm Password" 
-                                    value={formData.confirmPassword} 
+                                <InputField
+                                    icon={<FaLock />}
+                                    type="password"
+                                    name="confirmPassword"
+                                    placeholder="Confirm Password"
+                                    value={formData.confirmPassword}
+                                    onChange={handleChange}
+                                />
+                                <InputField
+                                    icon={<FaKey />}
+                                    type="password"
+                                    name="adminCode"
+                                    placeholder="Admin Code"
+                                    value={formData.adminCode}
                                     onChange={handleChange}
                                 />
                             </>
@@ -291,19 +347,29 @@ const Login = (props) => {
 
                         <button
                             type="submit"
-                            className="w-full p-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2 transform hover:scale-[1.02]"
+                            className={`w-full py-3 rounded-lg flex items-center justify-center gap-2 text-white font-semibold transition-all duration-300 ${loading ? 'bg-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                            disabled={loading}
                         >
-                            {isSignup ? <FaUserPlus /> : <FaSignInAlt />}
-                            {isSignup ? 'Sign Up' : 'Login'}
+                            {loading ? (
+                                <span>Processing...</span>
+                            ) : (
+                                <>
+                                    {isSignup ? <FaUserPlus /> : <FaSignInAlt />}
+                                    {isSignup ? 'Create Account' : 'Login'}
+                                </>
+                            )}
                         </button>
-                    </form>
 
-                    <button
-                        onClick={() => setIsSignup(!isSignup)}
-                        className="mt-6 text-gray-600 hover:text-indigo-600 w-full text-center flex items-center justify-center gap-2 transition-all duration-300"
-                    >
-                        {isSignup ? 'Already have an account? Login' : 'Create an account'}
-                    </button>
+                        <div className="text-center mt-4">
+                            <button
+                                type="button"
+                                onClick={() => setIsSignup(!isSignup)}
+                                className="text-blue-600 hover:underline transition-colors duration-300"
+                            >
+                                {isSignup ? 'Already have an account? Login' : 'Need an account? Sign Up'}
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

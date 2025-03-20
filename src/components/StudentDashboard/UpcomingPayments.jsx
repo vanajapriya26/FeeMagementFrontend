@@ -18,33 +18,38 @@ const UpcomingPayments = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [selectedPayment, setSelectedPayment] = useState(null);
-    // Mock current student ID - in a real app, this would come from authentication
-    const currentStudentId = 1;
+    
+    // Get student ID from localStorage if available, otherwise use mock ID
+    const studentData = localStorage.getItem('student') ? JSON.parse(localStorage.getItem('student')) : null;
+    const currentStudentId = studentData ? studentData._id : 1;
 
-    // Logic to filter and display upcoming payments based on fee categories
+    // Get student-specific payments
     const studentPayments = getStudentPayments(currentStudentId);
 
     useEffect(() => {
         console.log('Student payments updated:', studentPayments);
     }, [studentPayments]);
 
-    // Log whenever upcomingPayments changes
     useEffect(() => {
         console.log('All upcoming payments changed:', upcomingPayments);
     }, [upcomingPayments]);
 
-    // Combine upcomingPaymentsList with studentPayments
+    useEffect(() => {
+        console.log('Fee categories from backend:', feeCategories);
+    }, [feeCategories]);
+
+    // Map fee categories to payment format
     const upcomingPaymentsList = feeCategories.map(category => ({
-        id: category.id,
-        category: category.name,
-        description: category.description || "", // Add description if available
+        id: category.id || category._id,
+        category: category.name || category.category,
+        description: category.description || `${category.name || category.category} Fee`,
         amount: category.amount,
-        dueDate: category.dueDate // Assuming dueDate is part of the category
+        dueDate: category.dueDate || new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0],
+        status: 'upcoming'
     }));
 
     const combinedPayments = [...studentPayments, ...upcomingPaymentsList];
 
-    // Sorting and filtering logic
     const sortedPayments = combinedPayments
         .filter(payment =>
             payment.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -54,15 +59,13 @@ const UpcomingPayments = () => {
         .filter(payment => filterStatus === "all" || payment.status === filterStatus)
         .sort((a, b) => (sortBy === "dueDate" ? new Date(a.dueDate) - new Date(b.dueDate) : b.amount - a.amount));
 
-    // Total amount calculation with safety checks
+    // Calculate total amount due
     const totalUpcoming = combinedPayments
-        .filter(payment => payment && payment.status === 'upcoming' && !isNaN(payment.amount))
         .reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
 
     console.log('Sorted and filtered payments:', sortedPayments);
     console.log('Total upcoming amount:', totalUpcoming);
 
-    // Determine if payment is urgent (due in ≤ 7 days)
     const isUrgent = (dueDate) => {
         const today = new Date();
         const due = new Date(dueDate);
@@ -70,12 +73,10 @@ const UpcomingPayments = () => {
         return diffDays <= 7 && diffDays >= 0;
     };
 
-    // Handle payment modal open
     const openPaymentModal = (payment) => {
         setSelectedPayment(payment);
     };
 
-    // Handle payment process (simulate with a timeout)
     const handlePayment = () => {
         setUpcomingPayments((prev) =>
             prev.map((payment) =>
@@ -98,7 +99,6 @@ const UpcomingPayments = () => {
                 </div>
             </div>
 
-            {/* Search and Filter Controls */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
                 <div className="relative w-full md:w-1/2">
                     <input
@@ -131,7 +131,6 @@ const UpcomingPayments = () => {
                 </div>
             </div>
 
-            {/* Payments Table */}
             <div className="bg-white p-6 rounded-lg shadow-md">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
@@ -146,48 +145,55 @@ const UpcomingPayments = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {sortedPayments.map((payment) => (
-                                <tr key={payment.id} className={isUrgent(payment.dueDate) ? "bg-red-50" : ""}>
-                                    <td className="px-4 py-2 flex items-center gap-2">
-                                        <FaMoneyBillWave className="text-green-500" />
-                                        {payment.category}
-                                    </td>
-                                    <td className="px-4 py-2">{payment.description}</td>
-                                    <td className="px-4 py-2 font-semibold">₹{payment.amount}</td>
-                                    <td className="px-4 py-2 flex items-center gap-2">
-                                        <FaCalendarAlt className="text-gray-400" />
-                                        {payment.dueDate}
-                                    </td>
-                                    <td className="px-4 py-2">
-                                        {isUrgent(payment.dueDate) ? (
-                                            <span className="flex items-center gap-1 text-red-500">
-                                                <FaExclamationTriangle />
-                                                Urgent
-                                            </span>
-                                        ) : (
-                                            <span className="flex items-center gap-1 text-yellow-500">
-                                                <FaClock />
-                                                Upcoming
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-2">
-                                        <button
-                                            className="flex items-center gap-2 text-blue-500 hover:text-blue-600"
-                                            onClick={() => openPaymentModal(payment)}
-                                        >
-                                            Pay Now
-                                            <FaArrowRight />
-                                        </button>
+                            {sortedPayments.length > 0 ? (
+                                sortedPayments.map((payment) => (
+                                    <tr key={payment.id} className={isUrgent(payment.dueDate) ? "bg-red-50" : ""}>
+                                        <td className="px-4 py-2 flex items-center gap-2">
+                                            <FaMoneyBillWave className="text-green-500" />
+                                            {payment.category}
+                                        </td>
+                                        <td className="px-4 py-2">{payment.description}</td>
+                                        <td className="px-4 py-2 font-semibold">₹{payment.amount}</td>
+                                        <td className="px-4 py-2 flex items-center gap-2">
+                                            <FaCalendarAlt className="text-gray-400" />
+                                            {payment.dueDate}
+                                        </td>
+                                        <td className="px-4 py-2">
+                                            {isUrgent(payment.dueDate) ? (
+                                                <span className="flex items-center gap-1 text-red-500">
+                                                    <FaExclamationTriangle />
+                                                    Urgent
+                                                </span>
+                                            ) : (
+                                                <span className="flex items-center gap-1 text-yellow-500">
+                                                    <FaClock />
+                                                    Upcoming
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-2">
+                                            <button
+                                                className="flex items-center gap-2 text-blue-500 hover:text-blue-600"
+                                                onClick={() => openPaymentModal(payment)}
+                                            >
+                                                Pay Now
+                                                <FaArrowRight />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="6" className="px-4 py-4 text-center text-gray-500">
+                                        No fee payments found. Check back later for updates.
                                     </td>
                                 </tr>
-                            ))}
+                            )}
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            {/* Payment Modal */}
             {selectedPayment && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
                     <div className="bg-white p-6 rounded-lg shadow-lg w-96">

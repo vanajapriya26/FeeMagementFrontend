@@ -1,5 +1,3 @@
-// src/components/StudentDashboard/StudentDashboard.js
-
 import React, { useState, useEffect } from 'react';
 import '../../styles/global.css';
 import { 
@@ -20,10 +18,40 @@ import UpcomingPayments from './UpcomingPayments';
 import PaymentOptions from './PaymentOptions';
 import Support from './Support';
 import Notifications from './Notifications';
+import { useNavigate } from 'react-router-dom';
 
-const StudentDashboard = ({ student, payments, upcomingFees, isLoggedIn, onLogout }) => {
+const StudentDashboard = ({ isLoggedIn, onLogout }) => {
     const [activeSection, setActiveSection] = useState('profile');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [student, setStudent] = useState(null);
+    const [payments, setPayments] = useState([]);
+    const [upcomingFees, setUpcomingFees] = useState([]);
+    const navigate = useNavigate();
+
+    // Load student data from localStorage
+    useEffect(() => {
+        const storedStudent = localStorage.getItem('student');
+        if (storedStudent) {
+            try {
+                const studentData = JSON.parse(storedStudent);
+                setStudent(studentData);
+            } catch (error) {
+                console.error('Error parsing student data:', error);
+            }
+        }
+
+        // TODO: Load payments and upcoming fees from API
+        // This is placeholder data
+        setPayments([
+            { id: 1, amount: 25000, date: '2025-01-15', status: 'paid', description: 'Tuition Fee' },
+            { id: 2, amount: 5000, date: '2025-02-10', status: 'paid', description: 'Library Fee' }
+        ]);
+        
+        setUpcomingFees([
+            { id: 3, amount: 10000, dueDate: '2025-04-15', description: 'Exam Fee' },
+            { id: 4, amount: 15000, dueDate: '2025-05-20', description: 'Lab Fee' }
+        ]);
+    }, []);
 
     // Navigation items with icons
     const navItems = [
@@ -35,10 +63,24 @@ const StudentDashboard = ({ student, payments, upcomingFees, isLoggedIn, onLogou
         { id: 'support', label: 'Support', icon: <FaQuestionCircle /> }
     ];
 
+    const handleLogout = () => {
+        // Clear all student-related data
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        localStorage.removeItem('student');
+        localStorage.removeItem('studentId');
+        
+        // Call the parent component's logout handler
+        onLogout();
+        
+        // Navigate to login page
+        navigate('/');
+    };
+
     const renderContent = () => {
         switch (activeSection) {
             case 'profile':
-                return <Profile student={student} />;
+                return <Profile />;
             case 'notifications':
                 return <Notifications />;
             case 'feePaymentStatus':
@@ -50,7 +92,7 @@ const StudentDashboard = ({ student, payments, upcomingFees, isLoggedIn, onLogou
             case 'support':
                 return <Support />;
             default:
-                return <Profile student={student} />;
+                return <Profile />;
         }
     };
 
@@ -111,7 +153,7 @@ const StudentDashboard = ({ student, payments, upcomingFees, isLoggedIn, onLogou
                     <li>
                         {isLoggedIn ? (
                             <button
-                                onClick={onLogout}
+                                onClick={handleLogout}
                                 className="py-2 px-4 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl"
                             >
                                 <FaSignOutAlt />
@@ -119,7 +161,7 @@ const StudentDashboard = ({ student, payments, upcomingFees, isLoggedIn, onLogou
                             </button>
                         ) : (
                             <button
-                                onClick={() => console.log('Redirect to Login')}
+                                onClick={() => navigate('/')}
                                 className="py-2 px-4 rounded-lg bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2"
                             >
                                 <FaSignInAlt />
@@ -169,7 +211,7 @@ const StudentDashboard = ({ student, payments, upcomingFees, isLoggedIn, onLogou
                     <li>
                         {isLoggedIn ? (
                             <button
-                                onClick={() => { onLogout(); setIsMenuOpen(false); }}
+                                onClick={() => { handleLogout(); setIsMenuOpen(false); }}
                                 className="py-2 px-4 rounded-lg bg-red-500 text-white hover:bg-red-600 w-full flex items-center gap-2"
                             >
                                 <FaSignOutAlt />
@@ -177,7 +219,7 @@ const StudentDashboard = ({ student, payments, upcomingFees, isLoggedIn, onLogou
                             </button>
                         ) : (
                             <button
-                                onClick={() => { console.log('Redirect to Login'); setIsMenuOpen(false); }}
+                                onClick={() => { navigate('/'); setIsMenuOpen(false); }}
                                 className="py-2 px-4 rounded-lg bg-blue-600 text-white hover:bg-blue-700 w-full flex items-center gap-2"
                             >
                                 <FaSignInAlt />

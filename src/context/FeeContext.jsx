@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { fetchFees } from '../services/api';
 
 const FeeContext = createContext();
 
@@ -166,6 +167,28 @@ export const FeeProvider = ({ children }) => {
             photo: '/assests/21A21A05E1.png' // Use relative path
         }
     ]);
+
+    // Fetch fee categories from backend API
+    useEffect(() => {
+        const getFeeCategories = async () => {
+            try {
+                const feesData = await fetchFees();
+                // Transform the data to match the expected format
+                const formattedFees = feesData.map(fee => ({
+                    id: fee._id,
+                    name: fee.category,
+                    amount: fee.amount,
+                    description: `${fee.category} Fee`,
+                    dueDate: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0] // Set due date to 30 days from now
+                }));
+                setFeeCategories(formattedFees);
+            } catch (error) {
+                console.error('Failed to fetch fee categories:', error);
+            }
+        };
+
+        getFeeCategories();
+    }, []);
 
     // Save to localStorage whenever state changes
     const saveToLocalStorage = (key, value) => {

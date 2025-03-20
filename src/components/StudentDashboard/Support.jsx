@@ -1,10 +1,8 @@
-// src/components/StudentDashboard/Support.js
-
 import React, { useState } from 'react';
-import { 
-    FaQuestionCircle, 
-    FaEnvelope, 
-    FaPhone, 
+import {
+    FaQuestionCircle,
+    FaEnvelope,
+    FaPhone,
     FaWhatsapp,
     FaComments,
     FaPaperPlane,
@@ -18,8 +16,7 @@ const Support = () => {
     const [selectedFaq, setSelectedFaq] = useState(null);
     const [ticketForm, setTicketForm] = useState({
         subject: '',
-        message: '',
-        priority: 'normal'
+        message: ''
     });
 
     // FAQ data
@@ -48,11 +45,11 @@ const Support = () => {
 
     // Support contact information
     const contactInfo = {
-        email: 'support@college.edu',
-        phone: '(123) 456-7890',
-        whatsapp: '+91 98765 43210',
+        email: 'info@swarnandhra.ac.in',
+        phone: '+91 - 9346610099',
+        whatsapp: '+91 9346610099',
         hours: '9:00 AM - 5:00 PM (Mon-Fri)',
-        location: 'Admin Block, Ground Floor'
+        location: 'Seetharampuram, Narsapur, Andhra Pradesh 534280, India'
     };
 
     const handleTicketSubmit = (e) => {
@@ -61,15 +58,14 @@ const Support = () => {
             alert('Please fill in all required fields');
             return;
         }
-        
+
         console.log('Support ticket submitted:', ticketForm);
         // Add API call here
-        
+
         // Reset form
         setTicketForm({
             subject: '',
-            message: '',
-            priority: 'normal'
+            message: ''
         });
         alert('Your support ticket has been submitted successfully!');
     };
@@ -138,7 +134,7 @@ const Support = () => {
 
                 {/* Support Ticket Form */}
                 <div className="p-4 border rounded-lg">
-                    <h3 className="text-lg font-semibold mb-4">Submit a Support Ticket</h3>
+                    <h3 className="text-lg font-semibold mb-4">Submit a Query</h3>
                     <form onSubmit={handleTicketSubmit} className="space-y-4">
                         <div>
                             <label className="block text-gray-700 mb-2">Subject</label>
@@ -160,25 +156,12 @@ const Support = () => {
                                 placeholder="Describe your issue"
                             />
                         </div>
-                        <div>
-                            <label className="block text-gray-700 mb-2">Priority</label>
-                            <select
-                                className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
-                                value={ticketForm.priority}
-                                onChange={(e) => setTicketForm({...ticketForm, priority: e.target.value})}
-                            >
-                                <option value="low">Low</option>
-                                <option value="normal">Normal</option>
-                                <option value="high">High</option>
-                                <option value="urgent">Urgent</option>
-                            </select>
-                        </div>
                         <button
                             type="submit"
                             className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition duration-200 flex items-center justify-center gap-2"
                         >
                             <FaPaperPlane />
-                            Submit Ticket
+                            Submit Query
                         </button>
                     </form>
                 </div>
